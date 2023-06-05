@@ -1,3 +1,7 @@
 *.log
 /cache
 /txt-other
+
+# Temporary
+/csv
+csv/.~lock.info_csv_test3.csv#
