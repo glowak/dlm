@@ -1,8 +1,8 @@
 *.log
-/cache
-/txt-other
+cache
+txt-other
 /.vscode
-/ipynbs
+ipynbs
 # Temporary
 /csv
 csv/.~lock.info_csv_test3.csv#
