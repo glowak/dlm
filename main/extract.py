@@ -179,7 +179,7 @@ def search_for_id(dict_parsed):
     '''
     Returns a matched string with line id from the corpus.
     '''
-    match = re.match(r"@@\d{7}", dict_parsed["text"])
+    match = re.match(r"@@\d", dict_parsed["text"])
     return match.group(0)
 
 
@@ -225,4 +225,3 @@ def addline(conj, word, sentence, file_path, genre, sent_id):
 }
 
     return line
-

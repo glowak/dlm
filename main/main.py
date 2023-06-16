@@ -1,4 +1,5 @@
 from trankit import Pipeline
+from tqdm import tqdm
 import time
 import resource
 
@@ -14,13 +15,13 @@ def parse_sentences(pipeline, data):
 
 
 def main():
-    CORPUS_PATH = "/media/adglo/Others/nlp/dlm/coca-samples/text_fic_2000.txt"
-    TEMPLATE_PATH = "/media/adglo/Others/nlp/dlm/csv/UD_Polish-LFG.csv"
-    CSV_PATH = "/media/adglo/Others/nlp/dlm/csv/info_csv_test3.csv"
+    CORPUS_PATH = "coca-samples/text_test_sample.txt"
+    TEMPLATE_PATH = "csv/UD_Polish-LFG.csv"
+    CSV_PATH = "csv/info_csv_from_test_sample.csv"
 
     time_start = time.perf_counter()
 
-    eng_pipeline = Pipeline("english", gpu=False)
+    eng_pipeline = Pipeline("english", gpu=False, cache_dir="cache")
 
     genre = CORPUS_PATH.split("_")[1].split(".")[0]
     text = load_data(CORPUS_PATH)
@@ -29,7 +30,7 @@ def main():
     info_csv = CSVInfo(template)
 
     # Looping through lines in .txt file
-    for i in range(1, 3):
+    for i in tqdm(range(1, len(text))):
         dict_of_sentences = parse_sentences(eng_pipeline, text[i])
 
         clean_depparsed, removed_ids = clean(dict_of_sentences)
@@ -59,13 +60,13 @@ def main():
                 info_csv.add_info_row(addline(conj_last, word_last, sentence, CORPUS_PATH, genre, sent_id))
 
         if conj_depparsed is not None:
-            toconllu(conj_depparsed, f"/media/adglo/Others/nlp/dlm/conll-docs/conllu_conj{i}_{genre}.conll")
+            toconllu(conj_depparsed, f"conll-docs/conllu_conj{i}_{genre}.conll")
 
 
-        time_elapsed = (time.perf_counter() - time_start)
-        memMb = resource.getrusage(
-            resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0
-        print("%5.1f secs %5.1f MByte" % (time_elapsed, memMb))
+    time_elapsed = (time.perf_counter() - time_start)
+    memMb = resource.getrusage(
+        resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0
+    print("%5.1f secs %5.1f MByte" % (time_elapsed, memMb))
 
     info_csv.export(CSV_PATH)
 
