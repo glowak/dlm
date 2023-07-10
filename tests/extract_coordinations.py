@@ -8,9 +8,9 @@ from coordlm.utils import other
 from coordlm.utils import cleaning
 from coordlm.tools import extract
 
-CORPUS_PATH = "coca-samples/text_test_sample.txt"
-TEMPLATE_PATH = "csv/UD_Polish-LFG.csv"
-CSV_PATH = "csv/info_csv_from_test_sample.csv"
+CORPUS_PATH = "data/samples/coca-samples/text_test_sample.txt"
+TEMPLATE_PATH = "data/csv/UD_Polish-LFG.csv"
+CSV_PATH = "data/csv/info_csv_from_test_sample.csv"
 
 
 def parse_sentences(pipeline, data):
