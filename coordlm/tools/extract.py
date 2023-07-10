@@ -29,15 +29,16 @@ def select_conj(dict_parsed):
                 if t["head"] == token["id"]:
                     token["children"].append(t["id"])
 
-            if token["deprel"] == "conj" and sentence["id"] not in selected_ids:
+            if token["deprel"] == "cc" and sentence["tokens"][token["head"] - 1]["deprel"] == "conj":
                 conj_counter += 1
                 sentence["words_cconj"].append({"no": conj_counter,
                                                 "word": token["text"],
                                                 "tag": token["xpos"],
                                                 "pos": token["upos"],
                                                 "ms": " "})
-                if sentence["id"] not in selected_ids:
-                    selected_ids.append(sentence["id"])
+
+            if token["deprel"] == "conj" and sentence["id"] not in selected_ids:
+                selected_ids.append(sentence["id"])
             
             
 
@@ -49,7 +50,6 @@ def select_conj(dict_parsed):
 
 def conj_info_extraction(dict_parsed):  
     for sentence in dict_parsed["sentences"]:
-        conj_counter = 1
         sentence["coordination_info"] = []
 
         for token in sentence["tokens"]:
@@ -92,8 +92,7 @@ def conj_info_extraction(dict_parsed):
                     left_feats = " "
                     right_feats = " "
                
-                sentence["coordination_info"].append({"no.conjunct": conj_counter,
-                                                      "left_head": left_token_conj,
+                sentence["coordination_info"].append({"left_head": left_token_conj,
                                                       "right_head": right_token_conj,
                                                       "text": {"left": left_token_conj["text"],
                                                                "right": right_token_conj["text"]},
@@ -112,7 +111,6 @@ def conj_info_extraction(dict_parsed):
                                                       "governor_ms": ms
                                                       })
 
-            conj_counter += 1
 
 
 def search_for_dependencies(sentence):
@@ -179,7 +177,7 @@ def search_for_id(dict_parsed):
     '''
     Returns a matched string with line id from the corpus.
     '''
-    match = re.match(r"@@\d", dict_parsed["text"])
+    match = re.search(r"@@\d*", dict_parsed["text"])
     return match.group(0)
 
 
@@ -197,7 +195,7 @@ def addline(conj, word, sentence, file_path, genre, sent_id):
             "conjunction.tag": word["tag"],
             "conjunction.pos": word["pos"],
             "conjunction.ms": word["ms"],
-            "no.conjuncts": len(sentence["coordination_info"]) + 1,
+            "no.conjuncts": len(sentence["coordination_info"]),
             "L.conjunct": conj["left_text"],
             "L.dep.label": conj["left_deplabel"],
             "L.head.word": conj["text"]["left"],
