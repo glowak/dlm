@@ -7,16 +7,11 @@ from coordlm.utils.data import CSVInfo
 from coordlm.utils import other
 from coordlm.utils import cleaning
 from coordlm.tools import extract
+from coordlm.tools import sentences
 
 CORPUS_PATH = "data/samples/coca-samples/text_test_sample.txt"
 TEMPLATE_PATH = "data/csv/UD_Polish-LFG.csv"
 CSV_PATH = "data/csv/info_csv_from_test_sample.csv"
-
-
-def parse_sentences(pipeline, data):
-    sentences = pipeline.posdep(data)
-    return sentences
-
 
 def main():
 
@@ -27,14 +22,14 @@ def main():
     genre = CORPUS_PATH.split("_")[1].split(".")[0]
     text = other.load_data(CORPUS_PATH)
 
-    template = other.create_csv_template(TEMPLATE_PATH)
+    template = other.create_template_from_csv(TEMPLATE_PATH)
     info_csv = CSVInfo(template)
 
     # Looping through lines in .txt file
     for i in tqdm(range(0, len(text))):
         text[i] = cleaning.clean_text(text[i])
 
-        dict_of_sentences = parse_sentences(eng_pipeline, text[i])
+        dict_of_sentences = sentences.depparse_sentences(eng_pipeline, text[i])
         clean_depparsed, removed_ids = cleaning.clean_parsed(dict_of_sentences)
         conj_depparsed, selected_ids = extract.select_conj(clean_depparsed)
 
@@ -45,27 +40,21 @@ def main():
         # Adding info
         for sentence in conj_depparsed["sentences"]:
             extract.search_for_dependencies(sentence)
-            try:
-                word_first = sentence["words_cconj"][0]
-            except IndexError:
-                word_first = {"no": "",
-                              "word": "",
-                              "tag": "",
-                              "pos": "",
-                              "ms": ""}
-            if len(sentence["coordination_info"]) == 1:
-                conj = sentence["coordination_info"][0]
 
-                info_csv.add_info_row(extract.addline(conj, word_first, sentence, CORPUS_PATH, genre, sent_id))
+            for i in range(len(sentence["coordination_info"])):
 
-            elif len(sentence["coordination_info"]) > 1:
-                conj_first = sentence["coordination_info"][0]
-                conj_last = sentence["coordination_info"][len(sentence["coordination_info"]) - 1]
+                try:
+                    word = sentence["words_cconj"][i]
+                except IndexError:
+                    word_first = {"no": "",
+                                  "word": "",
+                                  "tag": "",
+                                  "pos": "",
+                                  "ms": ""}
 
-                word_last = sentence["words_cconj"][len(sentence["words_cconj"]) - 1]
+                conj = sentence["coordination_info"][i]
 
-                info_csv.add_info_row(extract.addline(conj_first, word_first, sentence, CORPUS_PATH, genre, sent_id))
-                info_csv.add_info_row(extract.addline(conj_last, word_last, sentence, CORPUS_PATH, genre, sent_id))
+                info_csv.add_row(extract.addline(conj, word, sentence, CORPUS_PATH, genre, sent_id))
 
         #if conj_depparsed is not None:
         #    toconllu(conj_depparsed, f"conll-docs/conllu_conj{i}_{genre}.conll")
@@ -78,32 +67,5 @@ def main():
 
     info_csv.export(CSV_PATH)
 
-main()
-
-
-
-
-'''
-poprawić na tych samych tabelkach:
-interpunkcja w conjunctach
-enhanced UD sprawdzić
-dzielone podrzędniki, jeśli jest po prawej stronie
-koordynacja a i b i dalej jest podpięte pod a to pomijamy
-Disappionted, Sara set the mail aside, took off her fatigue jacket
-JEDNO SŁOWO: ROZBIJA NA COMPOUND (zwróć uwagę)
-liczyć dodatkowe tokeny ale słowo jest jedno
-INTERPUNKCJA
-
-jeśli jest do wszystkiego to pomijamy
-jeśli przecinek po lewej to ignorujemy
-przecinek i dywiz
-relacja: jeśli którykolwiek ma tą samą relację, to po lewej jest do pierwszego członu
-jak na lewo relacja, to gdy żaden inny nie ma takiej samej relacji to jest wspólna
-
-sprawdzić podział na zdania!
-oszacować ile można sparsować
-
-
-podział zdań
-jeden wiersz jedno zdanie
-'''
+if __name__ == "__main__":
+    main()

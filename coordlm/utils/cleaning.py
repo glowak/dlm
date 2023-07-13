@@ -1,11 +1,12 @@
 import re
 
-def clean_text(text):
+
+def clean_text(text: str) -> str:
     text_sub = re.sub(r'<p>|<h>',"", text)
     return text_sub
 
 
-def clean_parsed(dict_parsed):
+def clean_parsed(dict_parsed: dict) -> tuple[dict, list]:
     '''
     Removes all sentences that contain copyright-avoiding string "@ @ @ ..." and header tags.
     Returns a dictionary with correct sentences and list of removed sentences' ids.

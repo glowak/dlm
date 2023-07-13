@@ -1,6 +1,9 @@
 import re
+from collections import OrderedDict
+from coordlm.tools.syllables import syllables
 
-def select_conj(dict_parsed):
+
+def select_conj(dict_parsed: dict) -> tuple[dict, list[int]]:
     '''
     Selects all the sentences with at least one conjunction and adds
     key with a list of dictionaries, containing conjunction words and information
@@ -18,11 +21,20 @@ def select_conj(dict_parsed):
     for sentence in dict_parsed["sentences"]:
         sentence["dependencies"] = []
         sentence["words_cconj"] = []
+
         conj_counter = 0
+        # Information about ids and dep labels of every edge that comes into a token
         for token in sentence["tokens"]:
+            token["edges"] = OrderedDict([])
+
+
+        for token in sentence["tokens"]:
+            if token["head"] != 0:
+                sentence["tokens"][token["head"] - 1]["edges"][int(token["id"])] = token["deprel"]
+
             token["children"] = []
-            sentence["dependencies"].append(
-                (token["head"], token["id"], token["deprel"]))
+            #sentence["dependencies"].append(
+            #    (token["head"], token["id"], token["deprel"]))
 
             # Information about word's children
             for t in sentence["tokens"]:
@@ -37,27 +49,48 @@ def select_conj(dict_parsed):
                                                 "pos": token["upos"],
                                                 "ms": " "})
 
-            if token["deprel"] == "conj" and sentence["id"] not in selected_ids:
+            if token["deprel"] == "conj":
                 selected_ids.append(sentence["id"])
-            
-            
 
+            
+        for token in sentence["tokens"]:
+            token["edges"] = sorted(token["edges"].items())
         if sentence["id"] in selected_ids:
             selected_dict["sentences"].append(sentence)
 
     return selected_dict, selected_ids
 
 
-def conj_info_extraction(dict_parsed):  
+def is_one_right_conj(list: list) -> tuple[int, bool]:
+    conj_counter = 0
+    for idx, label in list:
+        if label == "conj" and conj_counter == 0:
+            conj_counter += 1
+            right_head_idx = idx
+        elif label == "conj" and conj_counter >= 1:
+            conj_counter += 1
+            right_head_idx = idx
+    if conj_counter == 1:
+        return right_head_idx, True
+    elif conj_counter > 1:
+        return right_head_idx, False
+
+
+def conj_info_extraction(dict_parsed: dict) -> None:  
     for sentence in dict_parsed["sentences"]:
         sentence["coordination_info"] = []
 
+        is_one = True
+        right_token_info = None
         for token in sentence["tokens"]:
             if token["deprel"] == "conj":
+                #if is_one == True: 
+                #    continue
+                if is_one == False and token["head"] == right_token_info: break
                 left_token_conj = sentence["tokens"][token["head"] - 1]
-                left_token_conj_id = left_token_conj["id"]
-                right_token_conj = token
-                right_token_conj_id = token["id"]
+                
+                right_token_info, is_one = is_one_right_conj(sentence["tokens"][token["head"] - 1]["edges"])
+                right_token_conj = sentence["tokens"][right_token_info - 1]
 
                 if left_token_conj["head"] != 0:
                     governor = sentence["tokens"][left_token_conj["head"] - 1]
@@ -91,7 +124,7 @@ def conj_info_extraction(dict_parsed):
                 except KeyError:
                     left_feats = " "
                     right_feats = " "
-               
+                
                 sentence["coordination_info"].append({"left_head": left_token_conj,
                                                       "right_head": right_token_conj,
                                                       "text": {"left": left_token_conj["text"],
@@ -110,10 +143,9 @@ def conj_info_extraction(dict_parsed):
                                                       "governor_pos": upos,
                                                       "governor_ms": ms
                                                       })
+      
 
-
-
-def search_for_dependencies(sentence):
+def search_for_dependencies(sentence: dict) -> None:
     '''
     Przerobiony kod od Magdy
     '''
@@ -141,16 +173,23 @@ def search_for_dependencies(sentence):
 
         left = ""
         right = ""
-        Lwords = 0
-        Ltokens = 0
+
         Rwords = 0
+        Lwords = 0
+
         Rtokens = 0
+        Ltokens = 0
+
+        Rsyllables = 0
+        Lsyllables = 0
 
         left_list.sort()
         right_list.sort()
 
         for id in left_list:
             Ltokens += 1
+            Lsyllables += syllables(sentence["tokens"][id - 1]["text"])
+
             if sentence["tokens"][id - 1]["deprel"] != "punct":
                 Lwords += 1
             left += sentence["tokens"][id - 1]["text"]
@@ -159,6 +198,8 @@ def search_for_dependencies(sentence):
                 
         for id in right_list:
             Rtokens += 1
+            Rsyllables += syllables(sentence["tokens"][id - 1]["text"])
+
             if sentence["tokens"][id - 1]["deprel"] != "punct":
                 Rwords += 1
             right += sentence["tokens"][id - 1]["text"]
@@ -167,13 +208,18 @@ def search_for_dependencies(sentence):
 
         con["right_text"] = right
         con["left_text"] = left
+
         con["Rwords"] = Rwords
         con["Lwords"] = Lwords
+
         con["Rtokens"] = Rtokens
         con["Ltokens"] = Ltokens
 
+        con["Rsyllables"] = Rsyllables
+        con["Lsyllables"] = Lsyllables
 
-def search_for_id(dict_parsed):
+
+def search_for_id(dict_parsed: dict) -> re.Match[str]:
     '''
     Returns a matched string with line id from the corpus.
     '''
@@ -181,11 +227,13 @@ def search_for_id(dict_parsed):
     return match.group(0)
 
 
-def count_syllables():
-    pass
-
-
-def addline(conj, word, sentence, file_path, genre, sent_id):
+def addline(conj: dict,
+            word: dict, 
+            sentence: dict, 
+            file_path: str, 
+            genre: str, 
+            sent_id: str
+    ) -> dict:
     line = {"governor.position": conj["governor_dir"],
             "governor.word": conj["governor"],
             "governor.tag": conj["governor_tag"],
@@ -204,7 +252,7 @@ def addline(conj, word, sentence, file_path, genre, sent_id):
             "L.head.ms": conj["left_ms"],
             "L.words": conj["Lwords"],
             "L.tokens": conj["Ltokens"],
-            "L.syllables": "Lsyllables",
+            "L.syllables": conj["Lsyllables"],
             "L.chars": len(conj["left_text"]),
             "R.conjunct": conj["right_text"],
             "R.dep.label": conj["right_deplabel"],
@@ -214,7 +262,7 @@ def addline(conj, word, sentence, file_path, genre, sent_id):
             "R.head.ms": conj["right_ms"],
             "R.words": conj["Rwords"],
             "R.tokens": conj["Rtokens"],
-            "R.syllables": "Rsyllables",
+            "R.syllables": conj["Rsyllables"],
             "R.chars": len(conj["right_text"]),
             "sentence": sentence["text"],
             "sent.id": sent_id + "-" + str(sentence["id"] - 1),

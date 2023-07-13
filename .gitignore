@@ -1,7 +1,5 @@
 *.log
 /cache
-/txt-other
 /.vscode
-/ipynbs
-# Temporary
-.vscode/settings.json
+
+/notes
