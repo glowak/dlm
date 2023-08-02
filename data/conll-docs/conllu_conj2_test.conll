@@ -200,7 +200,7 @@
 26	-	_	PUNCT	HYPH	_	29	punct	_	_
 27	a	_	DET	DT	Definite=Ind|PronType=Art	29	det	_	_
 28	-	_	PUNCT	HYPH	_	29	punct	_	_
-29	half	_	NOUN	NN	Number=Sing	30	nmod	_	_
+29	half	_	NOUN	NN	Number=Sing	30	compound	_	_
 30	miles	_	NOUN	NNS	Number=Plur	31	obl:npmod	_	_
 31	wide	_	ADJ	JJ	Degree=Pos	22	amod	_	_
 32	and	_	CCONJ	CC	_	40	cc	_	_
@@ -226,7 +226,7 @@
 52	full	_	ADJ	JJ	Degree=Pos	53	amod	_	_
 53	moon	_	NOUN	NN	Number=Sing	48	obj	_	_
 54	to	_	PART	TO	_	55	mark	_	_
-55	set	_	VERB	VB	VerbForm=Inf	48	xcomp	_	_
+55	set	_	VERB	VB	VerbForm=Inf	48	advcl	_	_
 56	.	_	PUNCT	.	_	14	punct	_	_
 
 1	Under	_	ADP	IN	_	2	case	_	_

@@ -23,15 +23,11 @@ def select_conj(dict_parsed: dict) -> tuple[dict, list[int]]:
         sentence["words_cconj"] = []
 
         conj_counter = 0
-        # Information about ids and dep labels of every edge that comes into a token
+        # Information about ids and dep labels of every edge that comes into a token and conj counter
         for token in sentence["tokens"]:
-            token["edges"] = OrderedDict([])
-
+            token["conj_count"] = 0
 
         for token in sentence["tokens"]:
-            if token["head"] != 0:
-                sentence["tokens"][token["head"] - 1]["edges"][int(token["id"])] = token["deprel"]
-
             token["children"] = []
             #sentence["dependencies"].append(
             #    (token["head"], token["id"], token["deprel"]))
@@ -41,7 +37,8 @@ def select_conj(dict_parsed: dict) -> tuple[dict, list[int]]:
                 if t["head"] == token["id"]:
                     token["children"].append(t["id"])
 
-            if token["deprel"] == "cc" and sentence["tokens"][token["head"] - 1]["deprel"] == "conj":
+            if (token["deprel"] == "cc" and 
+                sentence["tokens"][token["head"] - 1]["deprel"] == "conj"):
                 conj_counter += 1
                 sentence["words_cconj"].append({"no": conj_counter,
                                                 "word": token["text"],
@@ -52,45 +49,26 @@ def select_conj(dict_parsed: dict) -> tuple[dict, list[int]]:
             if token["deprel"] == "conj":
                 selected_ids.append(sentence["id"])
 
-            
-        for token in sentence["tokens"]:
-            token["edges"] = sorted(token["edges"].items())
         if sentence["id"] in selected_ids:
             selected_dict["sentences"].append(sentence)
 
     return selected_dict, selected_ids
 
 
-def is_one_right_conj(list: list) -> tuple[int, bool]:
-    conj_counter = 0
-    for idx, label in list:
-        if label == "conj" and conj_counter == 0:
-            conj_counter += 1
-            right_head_idx = idx
-        elif label == "conj" and conj_counter >= 1:
-            conj_counter += 1
-            right_head_idx = idx
-    if conj_counter == 1:
-        return right_head_idx, True
-    elif conj_counter > 1:
-        return right_head_idx, False
-
-
 def conj_info_extraction(dict_parsed: dict) -> None:  
     for sentence in dict_parsed["sentences"]:
         sentence["coordination_info"] = []
 
-        is_one = True
-        right_token_info = None
         for token in sentence["tokens"]:
-            if token["deprel"] == "conj":
-                #if is_one == True: 
-                #    continue
-                if is_one == False and token["head"] == right_token_info: break
+            if token["deprel"] == "conj" and sentence["tokens"][token["head"] - 1]["conj_count"] == 0:
+                # the head of the first token that has a conj deprel is the left head (head of first conjunct)
                 left_token_conj = sentence["tokens"][token["head"] - 1]
-                
-                right_token_info, is_one = is_one_right_conj(sentence["tokens"][token["head"] - 1]["edges"])
-                right_token_conj = sentence["tokens"][right_token_info - 1]
+
+                # if there are more than two conjuncts, choose the last one
+                for child_id in left_token_conj["children"]:
+                    if sentence["tokens"][child_id - 1]["deprel"] == "conj":
+                        left_token_conj["conj_count"] += 1
+                        right_token_conj = sentence["tokens"][child_id - 1]
 
                 if left_token_conj["head"] != 0:
                     governor = sentence["tokens"][left_token_conj["head"] - 1]
@@ -141,7 +119,8 @@ def conj_info_extraction(dict_parsed: dict) -> None:
                                                       "governor_dir": governor_dir,
                                                       "governor_tag": xpos,
                                                       "governor_pos": upos,
-                                                      "governor_ms": ms
+                                                      "governor_ms": ms,
+                                                      "count":  left_token_conj["conj_count"]
                                                       })
       
 
@@ -154,12 +133,33 @@ def search_for_dependencies(sentence: dict) -> None:
         left_list = []
         right_list = []
 
+        left_deprels = []
+        right_deprels = []
         for t in con["left_head"]["children"]:
-            if sentence["tokens"][t - 1]["id"] != con["right_head"]["id"] and sentence["tokens"][t - 1]["deprel"] != "cc" and sentence["tokens"][t - 1]["deprel"] != "punct":
+            if (sentence["tokens"][t - 1]["id"] != con["right_head"]["id"] and 
+                sentence["tokens"][t - 1]["deprel"] != "cc" and 
+                sentence["tokens"][t - 1]["text"] != "." and
+                sentence["tokens"][t - 1]["deprel"] != "conj" and
+                t < con["right_head"]["id"]):
                 left_list.append(t)
+                left_deprels.append(sentence["tokens"][t - 1]["deprel"])
+
         for t in con["right_head"]["children"]:
-            if sentence["tokens"][t - 1]["deprel"] != "punct" and sentence["tokens"][t - 1]["deprel"] != "cc":
+            if (sentence["tokens"][t - 1]["deprel"] != "cc"):
                 right_list.append(t)
+                right_deprels.append(sentence["tokens"][t - 1]["deprel"])
+       
+        for id in left_list[:]:
+            if ((id < con["left_head"]["id"] and
+                sentence["tokens"][id - 1]["deprel"] not in right_deprels and
+                min(left_list) >= id) or
+                (sentence["tokens"][max(left_list) - 1]["text"] == ",") or
+                (sentence["tokens"][min(left_list) - 1]["text"] == ",")):
+                left_list.remove(id)
+
+        for id in right_list[:]:
+            if (id == min(right_list) and sentence["tokens"][id - 1]["text"] == ","):
+                right_list.remove(id)
 
         for child in left_list:
             for t in sentence["tokens"][child - 1]["children"]:
@@ -192,8 +192,13 @@ def search_for_dependencies(sentence: dict) -> None:
 
             if sentence["tokens"][id - 1]["deprel"] != "punct":
                 Lwords += 1
+
             left += sentence["tokens"][id - 1]["text"]
-            if id < max(left_list):
+
+            if (sentence["tokens"][id]["text"] in [",", ".", ";", ":", ")", "%", "-"] or
+                sentence["tokens"][id - 1]["text"] in ["(", "-"]):
+                left += ""
+            elif id < max(left_list):
                 left += " "
                 
         for id in right_list:
@@ -203,8 +208,18 @@ def search_for_dependencies(sentence: dict) -> None:
             if sentence["tokens"][id - 1]["deprel"] != "punct":
                 Rwords += 1
             right += sentence["tokens"][id - 1]["text"]
-            if id < max(right_list):
+            if (sentence["tokens"][id]["text"] in [",", ".", ";", ":", ")", "%", "-"] or
+                sentence["tokens"][id - 1]["text"] in ["(", "-"]):
+                right += ""
+            elif id < max(right_list):
                 right += " "
+
+        # quote marks
+        right = re.sub(r'"\s*([^"]*?)\s*"', r'"\1"', right)
+        left = re.sub(r'"\s*([^"]*?)\s*"', r'"\1"', left)
+        # contractions
+        right = re.sub(r"\b(\w+)\s+'(\w+)\b", lambda match: match.group(1) + "'" + match.group(2), right)
+        left = re.sub(r"\b(\w+)\s+'(\w+)\b", lambda match: match.group(1) + "'" + match.group(2), left)
 
         con["right_text"] = right
         con["left_text"] = left
@@ -243,7 +258,7 @@ def addline(conj: dict,
             "conjunction.tag": word["tag"],
             "conjunction.pos": word["pos"],
             "conjunction.ms": word["ms"],
-            "no.conjuncts": len(sentence["coordination_info"]),
+            "no.conjuncts": conj["count"] + 1,
             "L.conjunct": conj["left_text"],
             "L.dep.label": conj["left_deplabel"],
             "L.head.word": conj["text"]["left"],

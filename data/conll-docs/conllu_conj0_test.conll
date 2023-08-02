@@ -162,7 +162,7 @@
 17	and	_	CCONJ	CC	_	19	cc	_	_
 18	higher	_	ADJ	JJR	Degree=Pos	19	amod	_	_
 19	education	_	NOUN	NN	Number=Sing	15	conj	_	_
-20	sectors	_	NOUN	NNS	Number=Plur	11	nmod	_	_
+20	sectors	_	NOUN	NNS	Number=Plur	22	nsubj	_	_
 21	to	_	PART	TO	_	22	mark	_	_
 22	develop	_	VERB	VB	VerbForm=Inf	11	acl	_	_
 23	systemic	_	ADJ	JJ	Degree=Pos	24	amod	_	_

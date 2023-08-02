@@ -10,7 +10,7 @@ class CSVInfo:
                  template: Optional[pd.DataFrame] = None,
                  cols: Optional[list] = None
         ):
-        assert (template or cols) is not None, "columns or template must be specified"
+        assert template is not None or cols is not None, "columns or template must be specified"
 
         if template is not None:
             self.csv = pd.DataFrame(columns=template.columns)
